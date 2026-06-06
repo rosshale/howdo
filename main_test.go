@@ -41,17 +41,28 @@ func TestParseSuggestionRejectsMultilineCommand(t *testing.T) {
 	}
 }
 
-func TestZshQuote(t *testing.T) {
-	got := zshQuote("printf '%s\\n' hello")
+func TestShellQuote(t *testing.T) {
+	got := shellQuote("printf '%s\\n' hello")
 	want := "'printf '\\''%s\\n'\\'' hello'"
 	if got != want {
-		t.Fatalf("zshQuote = %q, want %q", got, want)
+		t.Fatalf("shellQuote = %q, want %q", got, want)
 	}
 }
 
 func TestRunRejectsConflictingOutputModes(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code, err := run([]string{"--json", "--zsh", "list files"}, &stdout, &stderr)
+	if code != 2 {
+		t.Fatalf("code = %d, want 2", code)
+	}
+	if err == nil {
+		t.Fatal("err = nil, want error")
+	}
+}
+
+func TestRunRejectsConflictingShellOutputMode(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code, err := run([]string{"--json", "--shell", "list files"}, &stdout, &stderr)
 	if code != 2 {
 		t.Fatalf("code = %d, want 2", code)
 	}

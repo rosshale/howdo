@@ -21,7 +21,7 @@ const codexPrompt = `You generate one shell command for a user's natural-languag
 Return only JSON matching the provided schema. Do not use markdown.
 
 Rules:
-- Produce exactly one command string that the user can review and run in zsh.
+- Produce exactly one command string that the user can review and run in a POSIX-compatible shell.
 - Do not execute commands, inspect files, or use tools.
 - Prefer common, portable CLI commands when possible.
 - If the request is ambiguous, choose the safest reasonable command and mention the assumption in the rationale.
@@ -51,10 +51,11 @@ type suggestion struct {
 }
 
 type options struct {
-	jsonOutput bool
-	zshOutput  bool
-	noSpinner  bool
-	codexPath  string
+	jsonOutput  bool
+	shellOutput bool
+	zshOutput   bool
+	noSpinner   bool
+	codexPath   string
 }
 
 func main() {
@@ -70,15 +71,17 @@ func run(args []string, stdout, stderr io.Writer) (int, error) {
 	flags := flag.NewFlagSet("howdo", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	flags.BoolVar(&opts.jsonOutput, "json", false, "print machine-readable JSON only")
-	flags.BoolVar(&opts.zshOutput, "zsh", false, "print zsh assignment statements for shell integration")
+	flags.BoolVar(&opts.shellOutput, "shell", false, "print shell assignment statements for shell integration")
+	flags.BoolVar(&opts.zshOutput, "zsh", false, "print shell assignment statements for shell integration")
 	flags.BoolVar(&opts.noSpinner, "no-spinner", false, "disable progress spinner")
 	flags.StringVar(&opts.codexPath, "codex", getenv("HOWDO_CODEX", "codex"), "path to the codex executable")
 
 	if err := flags.Parse(args); err != nil {
 		return 2, err
 	}
-	if opts.jsonOutput && opts.zshOutput {
-		return 2, errors.New("--json and --zsh are mutually exclusive")
+	shellOutput := opts.shellOutput || opts.zshOutput
+	if opts.jsonOutput && shellOutput {
+		return 2, errors.New("--json and shell output are mutually exclusive")
 	}
 
 	request := strings.TrimSpace(strings.Join(flags.Args(), " "))
@@ -102,9 +105,9 @@ func run(args []string, stdout, stderr io.Writer) (int, error) {
 		if err := enc.Encode(s); err != nil {
 			return 1, err
 		}
-	case opts.zshOutput:
-		fmt.Fprintf(stdout, "HOWDO_COMMAND=%s\n", zshQuote(s.Command))
-		fmt.Fprintf(stdout, "HOWDO_RATIONALE=%s\n", zshQuote(s.Rationale))
+	case shellOutput:
+		fmt.Fprintf(stdout, "HOWDO_COMMAND=%s\n", shellQuote(s.Command))
+		fmt.Fprintf(stdout, "HOWDO_RATIONALE=%s\n", shellQuote(s.Rationale))
 	default:
 		fmt.Fprintf(stdout, "Reason: %s\n\n%s\n", s.Rationale, s.Command)
 	}
@@ -113,7 +116,7 @@ func run(args []string, stdout, stderr io.Writer) (int, error) {
 }
 
 func usage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: howdo [--json|--zsh] [--no-spinner] <request>")
+	fmt.Fprintln(w, "Usage: howdo [--json|--shell|--zsh] [--no-spinner] <request>")
 	fmt.Fprintln(w, `Example: howdo show current harddisk space`)
 }
 
@@ -216,7 +219,7 @@ func parseSuggestion(raw []byte) (suggestion, error) {
 	return s, nil
 }
 
-func zshQuote(s string) string {
+func shellQuote(s string) string {
 	if s == "" {
 		return "''"
 	}

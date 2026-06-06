@@ -22,7 +22,7 @@ howdo() {
     return 127
   fi
 
-  result="$("$howdo_bin" --zsh "$@")"
+  result="$("$howdo_bin" --shell "$@")"
   exit_code=$?
   if (( exit_code != 0 )); then
     return "$exit_code"
