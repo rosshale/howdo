@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -26,6 +27,11 @@ Rules:
 - Prefer common, portable CLI commands when possible.
 - If the request is ambiguous, choose the safest reasonable command and mention the assumption in the rationale.
 - The command must not include a trailing newline.
+
+Local CLI environment:
+%s
+
+Use this environment information to choose syntax and commands that are compatible with the user's machine. Do not assume that a tool is installed merely because it is commonly available.
 
 User request: %q`
 
@@ -133,7 +139,7 @@ func askCodex(ctx context.Context, opts options, request string, stderr io.Write
 		return suggestion{}, err
 	}
 
-	prompt := fmt.Sprintf(codexPrompt, request)
+	prompt := buildPrompt(request, localCLIEnvironment())
 	args := []string{
 		"--sandbox", "read-only",
 		"-a", "never",
@@ -178,6 +184,43 @@ func askCodex(ctx context.Context, opts options, request string, stderr io.Write
 		return suggestion{}, err
 	}
 	return s, nil
+}
+
+type cliEnvironment struct {
+	OS           string
+	Architecture string
+	Shell        string
+	ShellVersion string
+	Terminal     string
+}
+
+func localCLIEnvironment() cliEnvironment {
+	shell := strings.TrimSpace(os.Getenv("HOWDO_SHELL"))
+	if shell == "" {
+		shell = filepath.Base(strings.TrimSpace(os.Getenv("SHELL")))
+	}
+	if shell == "." {
+		shell = ""
+	}
+	return cliEnvironment{
+		OS:           runtime.GOOS,
+		Architecture: runtime.GOARCH,
+		Shell:        shell,
+		ShellVersion: strings.TrimSpace(os.Getenv("HOWDO_SHELL_VERSION")),
+		Terminal:     strings.TrimSpace(os.Getenv("TERM")),
+	}
+}
+
+func buildPrompt(request string, env cliEnvironment) string {
+	value := func(s string) string {
+		if s == "" {
+			return "unknown"
+		}
+		return s
+	}
+	details := fmt.Sprintf("- OS: %s\n- Architecture: %s\n- Shell: %s\n- Shell version: %s\n- Terminal type: %s",
+		value(env.OS), value(env.Architecture), value(env.Shell), value(env.ShellVersion), value(env.Terminal))
+	return fmt.Sprintf(codexPrompt, details, request)
 }
 
 func spinner(w io.Writer, done <-chan struct{}) {

@@ -46,6 +46,8 @@ howdo list files sorted by size
 
 The zsh wrapper calls the installed binary, prints the rationale, and uses `print -z` to put the command on the next prompt.
 
+Every request also includes compatibility context: the operating system, architecture, shell name and version, and terminal type. The bash and zsh integrations identify their active shell explicitly; direct CLI use falls back to `$SHELL`. No general environment variables or their values are submitted.
+
 The bash wrapper supports two workflows:
 
 ```bash

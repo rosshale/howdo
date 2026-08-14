@@ -34,7 +34,7 @@ howdo() {
   local howdo_bin result exit_code HOWDO_COMMAND HOWDO_RATIONALE
   howdo_bin="$(__howdo_find_bin)" || return "$?"
 
-  result="$("$howdo_bin" --shell "$@")"
+  result="$(HOWDO_SHELL=bash HOWDO_SHELL_VERSION="$BASH_VERSION" "$howdo_bin" --shell "$@")"
   exit_code=$?
   if (( exit_code != 0 )); then
     return "$exit_code"
@@ -62,7 +62,7 @@ __howdo_readline() {
   howdo_bin="$(__howdo_find_bin)" || return "$?"
 
   printf '\n' >&2
-  result="$("$howdo_bin" --shell "$request")"
+  result="$(HOWDO_SHELL=bash HOWDO_SHELL_VERSION="$BASH_VERSION" "$howdo_bin" --shell "$request")"
   exit_code=$?
   if (( exit_code != 0 )); then
     return "$exit_code"
